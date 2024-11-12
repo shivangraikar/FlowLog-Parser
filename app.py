@@ -1,5 +1,6 @@
 import streamlit as st
 import csv
+from io import StringIO
 
 st.title("Flow Log Tagging Application")
 flow_log_file = st.file_uploader("Upload Flow Log File", type=["txt"])
@@ -21,7 +22,7 @@ def parse_flow_logs(file):
         if len(parts) > 5:
             flow_logs.append({
                 "dstport": parts[5],
-                "protocol": "tcp" if parts[6] == "6" else "udp",
+                "protocol": "tcp" if parts[6].lower() == "6" else "udp",
                 "raw_data": line.strip()
             })
     return flow_logs
@@ -53,5 +54,22 @@ if flow_log_file and lookup_table_file:
 
     st.write("### Port/Protocol Combination Counts")
     st.write([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()])
+else:
+    st.error("Please upload both files")
 
+def generate_csv(data):
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(data[0].keys())
+    for row in data:
+        writer.writerow(row.values())
+    output.seek(0)
+    return output.getvalue()
 
+st.download_button("Download Tag Counts",
+                   data=generate_csv([{"Tag": k, "Count": v} for k, v in tag_counts.items()]),
+                   file_name="tag_counts.csv", mime="text/csv")
+
+st.download_button("Download Port/Protocol Counts",
+                   data=generate_csv([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()]),
+                   file_name="port_protocol_counts.csv", mime="text/csv")
