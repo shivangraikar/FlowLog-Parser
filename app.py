@@ -44,6 +44,15 @@ def map_tags(flow_logs, lookup_dict):
 
     return tag_counts, port_protocol_counts
 
+def generate_csv(data):
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(data[0].keys())
+    for row in data:
+        writer.writerow(row.values())
+    output.seek(0)
+    return output.getvalue()
+
 
 if flow_log_file and lookup_table_file:
     lookup_dict = parse_lookup_table(lookup_table_file)
@@ -59,22 +68,15 @@ if flow_log_file and lookup_table_file:
 
     st.write("### Port/Protocol Combination Counts")
     st.write([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()])
-else:
-    st.error("Please upload both files")
 
-def generate_csv(data):
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(data[0].keys())
-    for row in data:
-        writer.writerow(row.values())
-    output.seek(0)
-    return output.getvalue()
-
-st.download_button("Download Tag Counts",
+    st.download_button("Download Tag Counts",
                    data=generate_csv([{"Tag": k, "Count": v} for k, v in tag_counts.items()]),
                    file_name="tag_counts.csv", mime="text/csv")
 
-st.download_button("Download Port/Protocol Counts",
+    st.download_button("Download Port/Protocol Counts",
                    data=generate_csv([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()]),
                    file_name="port_protocol_counts.csv", mime="text/csv")
+
+else:
+    st.error("Please upload both files")
+
