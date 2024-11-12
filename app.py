@@ -19,30 +19,34 @@ def parse_lookup_table(file):
 
 def parse_flow_logs(flow_logs_file, lookup_dict):
     flow_logs = []
-    for line in flow_logs_file:
+    file_content = flow_logs_file.getvalue().decode("utf-8")
+    for line in file_content.splitlines():
         fields = line.split()
+        
+        if len(fields) < 6:
+            st.warning(f"Skipping invalid line: {line}")
+            continue
+        
         dstport = str(fields[5])
         protocol = str(fields[7].lower())
-        key = f"{dstport}_{protocol}"
-        tag = lookup_dict.get(key, "Untagged")
+        
         
         flow_logs.append({
             "dstport": dstport,
             "protocol": protocol,
             "raw_data": line.strip(),
-            "tag": tag
         })
         
     return flow_logs
 
-def map_tags(flow_logs):
+def map_tags(flow_logs, lookup_dict):
     tag_counts = {}
-    port_protocol_counts = {}
-    
     for flow_log in flow_logs:
         tag = flow_log["tag"]
         tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
+    port_protocol_counts = {}
+    for flow_log in flow_logs:
         port = flow_log["dstport"]
         protocol = flow_log["protocol"]
         key = (port, protocol)
@@ -50,40 +54,38 @@ def map_tags(flow_logs):
 
     return tag_counts, port_protocol_counts
 
-def generate_csv(data, headers):
+def generate_csv(data):
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(headers)
+    writer.writerow(data[0].keys())
     for row in data:
-        writer.writerow(row)
+        writer.writerow(row.values())
     output.seek(0)
     return output.getvalue()
 
 if flow_log_file and lookup_table_file:
     lookup_dict = parse_lookup_table(lookup_table_file)
     flow_logs = parse_flow_logs(flow_log_file, lookup_dict)
-    tag_counts, port_protocol_counts = map_tags(flow_logs)
-
+    tag_counts, port_protocol_counts = map_tags(flow_logs, lookup_dict)
+    
     st.write("### Flow Logs")
     st.write(flow_logs)
-    
+    st.write("### Lookup Table")
+    st.write(lookup_dict)
+
     st.write("### Tag Counts")
-    tag_counts_display = [{"Tag": k, "Count": v} for k, v in tag_counts.items()]
-    st.write(tag_counts_display)
-    
+    st.write([{"Tag": k, "Count": v} for k, v in tag_counts.items()])
+
     st.write("### Port/Protocol Combination Counts")
-    port_protocol_counts_display = [
-        {"Port": k[0], "Protocol": k[1], "Count": v} 
-        for k, v in port_protocol_counts.items()
-    ]
-    st.write(port_protocol_counts_display)
+    st.write([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()])
 
     st.download_button("Download Tag Counts",
-                   data=generate_csv(tag_counts_display, ["Tag", "Count"]),
+                   data=generate_csv([{"Tag": k, "Count": v} for k, v in tag_counts.items()]),
                    file_name="tag_counts.csv", mime="text/csv")
 
     st.download_button("Download Port/Protocol Counts",
-                   data=generate_csv(port_protocol_counts_display, ["Port", "Protocol", "Count"]),
+                   data=generate_csv([{"Port": k[0], "Protocol": k[1], "Count": v} for k, v in port_protocol_counts.items()]),
                    file_name="port_protocol_counts.csv", mime="text/csv")
+
 else:
     st.error("Please upload both files")
