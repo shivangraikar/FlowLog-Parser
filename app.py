@@ -9,7 +9,7 @@ lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
 def parse_lookup_table(file_content):
     lookup_dict = {}
     file = file_content.getvalue().decode("utf-8")
-    reader = csv.reader(file.splitlines(), delimiter=',')
+    reader = csv.reader(file, delimiter=',')
     next(reader) 
     for row in reader:
         dstport = row[0].strip()
