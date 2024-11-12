@@ -13,34 +13,41 @@ def parse_lookup_table(file):
     next(reader)
     for row in reader:
         port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
-        key = (port, protocol)
-        if key not in lookup_dict:
-            lookup_dict[key] = []
-        lookup_dict[key].append(tag.lower())
+        key = f"{port}_{protocol}"
+        lookup_dict[key] = tag
     return lookup_dict
 
-def parse_flow_logs(file):
+def parse_flow_logs(flow_logs_file, lookup_dict):
     flow_logs = []
-    for line in file:
-        parts = line.strip().split()
-        if len(parts) > 5:
-            flow_logs.append({
-                "dstport": parts[5],
-                "protocol": "tcp" if parts[6].lower() == "6" else "udp",
-                "raw_data": line.strip()
-            })
+    for line in flow_logs_file:
+        fields = line.split()
+        
+        dstport = str(fields[4])
+        protocol = str(fields[5].lower())
+        
+        tag = lookup_dict.get((dstport, protocol), "Untagged")
+        
+        flow_logs.append({
+            "dstport": dstport,
+            "protocol": protocol,
+            "raw_data": line.strip(),
+            "tag": tag
+        })
+        
     return flow_logs
 
 
 def map_tags(flow_logs, lookup_dict):
     tag_counts = {}
-    port_protocol_counts = {}
+    for flow_log in flow_logs:
+        tag = flow_log["tag"]
+        tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
-    for log in flow_logs:
-        key = (log['dstport'], log['protocol'].lower())
-        tags = lookup_dict.get(key, ["Untagged"])
-        for tag in tags:
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    port_protocol_counts = {}
+    for flow_log in flow_logs:
+        port = flow_log["dstport"]
+        protocol = flow_log["protocol"]
+        key = (port, protocol)
         port_protocol_counts[key] = port_protocol_counts.get(key, 0) + 1
 
     return tag_counts, port_protocol_counts
