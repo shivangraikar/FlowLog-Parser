@@ -10,24 +10,28 @@ def parse_lookup_table(file):
     lookup_dict = {}
     file_content = file.getvalue().decode("utf-8")
     reader = csv.reader(file_content.splitlines(), delimiter=',')
-    next(reader)  # Skip the header row
+    next(reader)
     for row in reader:
         port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
-        key = f"{port}_{protocol}"  # Store as string to match flow log key format
+        key = f"{port}_{protocol}"
         lookup_dict[key] = tag
     return lookup_dict
 
 def parse_flow_logs(flow_logs_file, lookup_dict):
     flow_logs = []
-    file_content = flow_logs_file.getvalue().decode("utf-8")  # Decode byte data to string
+    file_content = flow_logs_file.getvalue().decode("utf-8")
     for line in file_content.splitlines():
         fields = line.split()
         
-        dstport = str(fields[4])  # Ensure dstport is a regular string
-        protocol = str(fields[5].lower())  # Ensure protocol is a regular string
+        if len(fields) < 6:
+            st.warning(f"Skipping invalid line: {line}")
+            continue
         
-        key = f"{dstport}_{protocol}"  # Match the key format used in the lookup_dict
-        tag = lookup_dict.get(key, "Untagged")  # Use the formatted key
+        dstport = str(fields[4])
+        protocol = str(fields[5].lower())
+        
+        key = f"{dstport}_{protocol}"
+        tag = lookup_dict.get(key, "Untagged")
         
         flow_logs.append({
             "dstport": dstport,
@@ -56,15 +60,15 @@ def map_tags(flow_logs, lookup_dict):
 def generate_csv(data):
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(data[0].keys())  # Write headers
+    writer.writerow(data[0].keys())
     for row in data:
-        writer.writerow(row.values())  # Write data rows
+        writer.writerow(row.values())
     output.seek(0)
     return output.getvalue()
 
 if flow_log_file and lookup_table_file:
     lookup_dict = parse_lookup_table(lookup_table_file)
-    flow_logs = parse_flow_logs(flow_log_file, lookup_dict)  # Fix: pass lookup_dict
+    flow_logs = parse_flow_logs(flow_log_file, lookup_dict)
     tag_counts, port_protocol_counts = map_tags(flow_logs, lookup_dict)
     
     st.write("### Flow Logs")
