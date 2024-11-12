@@ -27,8 +27,8 @@ def parse_flow_logs(flow_logs_file, lookup_dict):
             st.warning(f"Skipping invalid line: {line}")
             continue
         
-        dstport = str(fields[4])
-        protocol = str(fields[5].lower())
+        dstport = str(fields[5])
+        protocol = str(fields[7].lower())
         
         key = f"{dstport}_{protocol}"
         tag = lookup_dict.get(key, "Untagged")
