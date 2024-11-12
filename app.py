@@ -8,7 +8,8 @@ lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
 
 def parse_lookup_table(file):
     lookup_dict = {}
-    reader = csv.reader(file, delimiter=',')
+    file_content = file.getvalue().decode("utf-8")
+    reader = csv.reader(file_content.splitlines(), delimiter=',')
     next(reader)
     for row in reader:
         port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
