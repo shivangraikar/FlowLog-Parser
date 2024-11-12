@@ -38,8 +38,6 @@ def load_lookup_table(file):
             tag = parts[2].strip()
             lookup_key = f"{port}_{protocol}"
             tag_lookup[lookup_key] = tag
-            
-            st.write(f"Added to tag_lookup: {lookup_key} -> {tag}")
         else:
             st.warning(f"Skipping malformed line in lookup table: {line.strip()}")
 
@@ -60,11 +58,9 @@ def parseFlowLogs(file):
         protocol_name = protocol_map.get(protocol_number, "unknown").lower()
         
         lookup_key = f"{dst_port}_{protocol_name}"
-        st.write(f"Generated lookup_key: {lookup_key}")
         
         # Retrieve tag from tag_lookup
         tag = tag_lookup.get(lookup_key, "Untagged")
-        st.write(f"Tag found for {lookup_key}: {tag}")
 
         # Update counts
         tag_counts[tag] += 1
@@ -98,6 +94,7 @@ def main():
         st.table(tag_counts_df)
         
         # Display port/protocol combination counts
+        st.subheader("Protocol/Port Counts")
         port_protocol_counts_df = pd.DataFrame(
             [(port, protocol, count) for (port, protocol), count in port_protocol_counts.items()],
             columns=["Port", "Protocol", "Count"]
