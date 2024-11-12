@@ -10,22 +10,24 @@ def parse_lookup_table(file):
     lookup_dict = {}
     file_content = file.getvalue().decode("utf-8")
     reader = csv.reader(file_content.splitlines(), delimiter=',')
-    next(reader)
+    next(reader)  # Skip the header row
     for row in reader:
         port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
-        key = f"{port}_{protocol}"
+        key = f"{port}_{protocol}"  # Store as string to match flow log key format
         lookup_dict[key] = tag
     return lookup_dict
 
 def parse_flow_logs(flow_logs_file, lookup_dict):
     flow_logs = []
-    for line in flow_logs_file:
+    file_content = flow_logs_file.getvalue().decode("utf-8")  # Decode byte data to string
+    for line in file_content.splitlines():
         fields = line.split()
         
-        dstport = str(fields[4])
-        protocol = str(fields[5].lower())
+        dstport = str(fields[4])  # Ensure dstport is a regular string
+        protocol = str(fields[5].lower())  # Ensure protocol is a regular string
         
-        tag = lookup_dict.get((dstport, protocol), "Untagged")
+        key = f"{dstport}_{protocol}"  # Match the key format used in the lookup_dict
+        tag = lookup_dict.get(key, "Untagged")  # Use the formatted key
         
         flow_logs.append({
             "dstport": dstport,
@@ -35,7 +37,6 @@ def parse_flow_logs(flow_logs_file, lookup_dict):
         })
         
     return flow_logs
-
 
 def map_tags(flow_logs, lookup_dict):
     tag_counts = {}
@@ -55,17 +56,17 @@ def map_tags(flow_logs, lookup_dict):
 def generate_csv(data):
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(data[0].keys())
+    writer.writerow(data[0].keys())  # Write headers
     for row in data:
-        writer.writerow(row.values())
+        writer.writerow(row.values())  # Write data rows
     output.seek(0)
     return output.getvalue()
 
-
 if flow_log_file and lookup_table_file:
     lookup_dict = parse_lookup_table(lookup_table_file)
-    flow_logs = parse_flow_logs(flow_log_file)
+    flow_logs = parse_flow_logs(flow_log_file, lookup_dict)  # Fix: pass lookup_dict
     tag_counts, port_protocol_counts = map_tags(flow_logs, lookup_dict)
+    
     st.write("### Flow Logs")
     st.write(flow_logs)
     st.write("### Lookup Table")
@@ -87,4 +88,3 @@ if flow_log_file and lookup_table_file:
 
 else:
     st.error("Please upload both files")
-
