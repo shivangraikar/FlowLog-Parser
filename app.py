@@ -2,6 +2,7 @@ import csv
 from collections import defaultdict
 import streamlit as st
 import pandas as pd
+import io
 
 tag_lookup = {}
 protocol_map = {}
@@ -11,7 +12,7 @@ port_protocol_counts = defaultdict(int)
 def load_lookup_table(file):
     global tag_lookup
     tag_lookup.clear()
-    reader = csv.reader(file)
+    reader = csv.reader(io.TextIOWrapper(file))
     next(reader)
     for row in reader:
         port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
@@ -20,7 +21,7 @@ def load_lookup_table(file):
 def load_protocol_table(file):
     global protocol_map
     protocol_map.clear()
-    reader = csv.reader(file)
+    reader = csv.reader(io.TextIOWrapper(file))
     next(reader)
     for row in reader:
         decimal = row[0].strip()
