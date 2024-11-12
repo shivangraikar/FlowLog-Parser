@@ -6,56 +6,52 @@ st.title("Flow Log Tagging Application")
 flow_log_file = st.file_uploader("Upload Flow Log File", type=["txt"])
 lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
 
-def parse_lookup_table(file):
+def parse_lookup_table(file_content):
     lookup_dict = {}
-    file_content = file.getvalue().decode("utf-8")
     reader = csv.reader(file_content.splitlines(), delimiter=',')
-    next(reader)
+    next(reader) 
     for row in reader:
-        port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
-        key = f"{port}_{protocol}"
-        lookup_dict[key] = tag
+        dstport = row[0].strip()
+        tag = row[2].strip()
+        lookup_dict[dstport] = tag
     return lookup_dict
 
-def parse_flow_logs(flow_logs_file, lookup_dict):
+def parse_flow_logs(file_content, lookup_dict):
     flow_logs = []
-    file_content = flow_logs_file.getvalue().decode("utf-8")
     for line in file_content.splitlines():
         fields = line.split()
         
-        if len(fields) <= 7: 
-            st.warning(f"Skipping invalid line: {line}")
+        if len(fields) < 6:
+            print(f"Skipping invalid line due to insufficient fields: {line}")
             continue
-        
-        dstport = str(fields[5])
-        protocol = str(fields[7].lower())
-        
-        key = f"{dstport}_{protocol}"
-        tag = lookup_dict.get(key, "Untagged")
-        
+
+        dstport = fields[5]
+
+        tag = lookup_dict.get(dstport, "Untagged")
+
         flow_logs.append({
             "dstport": dstport,
-            "protocol": protocol,
             "raw_data": line.strip(),
             "tag": tag
         })
-        
+
     return flow_logs
 
 def map_tags(flow_logs):
     tag_counts = {}
-    port_protocol_counts = {}
-    
+    dstport_counts = {}
+
     for flow_log in flow_logs:
         tag = flow_log["tag"]
+        dstport = flow_log["dstport"]
+
+        # Count tags
         tag_counts[tag] = tag_counts.get(tag, 0) + 1
 
-        port = flow_log["dstport"]
-        protocol = flow_log["protocol"]
-        key = (port, protocol)
-        port_protocol_counts[key] = port_protocol_counts.get(key, 0) + 1
+        # Count dstport occurrences
+        dstport_counts[dstport] = dstport_counts.get(dstport, 0) + 1
 
-    return tag_counts, port_protocol_counts
+    return tag_counts, dstport_counts
 
 def generate_csv(data, headers):
     output = StringIO()
