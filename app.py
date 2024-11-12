@@ -8,8 +8,8 @@ lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
 
 def parse_lookup_table(file_content):
     lookup_dict = {}
-    file_content = file_content.getvalue().decode("utf-8")
-    reader = csv.reader(file_content.splitlines(), delimiter=',')
+    file = file_content.getvalue().decode("utf-8")
+    reader = csv.reader(file.splitlines(), delimiter=',')
     next(reader) 
     for row in reader:
         dstport = row[0].strip()
@@ -17,9 +17,9 @@ def parse_lookup_table(file_content):
         lookup_dict[dstport] = tag
     return lookup_dict
 
-def parse_flow_logs(file_content, lookup_dict):
+def parse_flow_logs(file, lookup_dict):
     flow_logs = []
-    for line in file_content.splitlines():
+    for line in file:
         fields = line.split()
         
         if len(fields) < 6:
