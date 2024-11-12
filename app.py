@@ -4,15 +4,18 @@ from io import StringIO
 
 st.title("Flow Log Tagging Application")
 flow_log_file = st.file_uploader("Upload Flow Log File", type=["txt"])
-lookup_table_file = st.file_uploader("Upload Lookup Table", type=["csv"])
+lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
 
 def parse_lookup_table(file):
     lookup_dict = {}
-    reader = csv.reader(file)
+    reader = csv.reader(file, delimiter=',')
     next(reader)
     for row in reader:
-        port, protocol, tag = row[0], row[1].lower(), row[2]
-        lookup_dict[(port, protocol)] = tag
+        port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
+        key = (port, protocol)
+        if key not in lookup_dict:
+            lookup_dict[key] = []
+        lookup_dict[key].append(tag.lower())
     return lookup_dict
 
 def parse_flow_logs(file):
@@ -27,14 +30,16 @@ def parse_flow_logs(file):
             })
     return flow_logs
 
+
 def map_tags(flow_logs, lookup_dict):
     tag_counts = {}
     port_protocol_counts = {}
 
     for log in flow_logs:
-        key = (log['dstport'], log['protocol'])
-        tag = lookup_dict.get(key, "Untagged")
-        tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        key = (log['dstport'], log['protocol'].lower())
+        tags = lookup_dict.get(key, ["Untagged"])
+        for tag in tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
         port_protocol_counts[key] = port_protocol_counts.get(key, 0) + 1
 
     return tag_counts, port_protocol_counts
@@ -44,9 +49,9 @@ if flow_log_file and lookup_table_file:
     lookup_dict = parse_lookup_table(lookup_table_file)
     flow_logs = parse_flow_logs(flow_log_file)
     tag_counts, port_protocol_counts = map_tags(flow_logs, lookup_dict)
-    st.write("Flow Logs")
+    st.write("### Flow Logs")
     st.write(flow_logs)
-    st.write("Lookup Table")
+    st.write("### Lookup Table")
     st.write(lookup_dict)
 
     st.write("### Tag Counts")
