@@ -24,9 +24,12 @@ def load_protocol_table(file):
     reader = csv.reader(io.TextIOWrapper(file))
     next(reader)
     for row in reader:
-        decimal = row[0].strip()
-        protocol_name = row[1].strip() if 0 <= int(decimal) <= 145 else "unknown"
-        protocol_map[decimal] = protocol_name
+        try:
+            decimal = row[0].strip()
+            protocol_name = row[1].strip() if 0 <= int(decimal) <= 145 else "unknown"
+            protocol_map[decimal] = protocol_name
+        except ValueError:
+            protocol_map[decimal] = "unknown"
 
 # Parse the log file
 def parse_flow_logs(file):
