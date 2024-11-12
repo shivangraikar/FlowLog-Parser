@@ -1,95 +1,89 @@
-import streamlit as st
 import csv
-from io import StringIO
+from collections import defaultdict
+import streamlit as st
+import pandas as pd
 
-st.title("Flow Log Tagging Application")
-flow_log_file = st.file_uploader("Upload Flow Log File", type=["txt"])
-lookup_table_file = st.file_uploader("Upload Lookup Table", type=["txt"])
+tag_lookup = {}
+protocol_map = {}
+tag_counts = defaultdict(int)
+port_protocol_counts = defaultdict(int)
 
-def parse_lookup_table(file_content):
-    lookup_dict = {}
-    file = file_content.getvalue().decode("utf-8")
-    reader = csv.reader(file, delimiter=',')
-    next(reader) 
+def load_lookup_table(file):
+    global tag_lookup
+    tag_lookup.clear()
+    reader = csv.reader(file)
+    next(reader)
     for row in reader:
-        dstport = row[0].strip()
-        tag = row[2].strip()
-        lookup_dict[dstport] = tag
-    return lookup_dict
+        port, protocol, tag = row[0].strip(), row[1].strip().lower(), row[2].strip()
+        tag_lookup[f"{port}_{protocol}"] = tag
 
-def parse_flow_logs(file, lookup_dict):
-    flow_logs = []
+def load_protocol_table(file):
+    global protocol_map
+    protocol_map.clear()
+    reader = csv.reader(file)
+    next(reader)
+    for row in reader:
+        decimal = row[0].strip()
+        protocol_name = row[1].strip() if 0 <= int(decimal) <= 145 else "unknown"
+        protocol_map[decimal] = protocol_name
+
+# Parse the log file
+def parse_flow_logs(file):
+    global tag_counts, port_protocol_counts
+    tag_counts.clear()
+    port_protocol_counts.clear()
+
     for line in file:
         fields = line.split()
-        
-        if len(fields) < 6:
-            print(f"Skipping invalid line due to insufficient fields: {line}")
+        if len(fields) < 8:
             continue
+        
+        dst_port = fields[5]
+        protocol_number = fields[7]
+        protocol_name = protocol_map.get(protocol_number, "unknown")
+        
+        # Get the tag
+        lookup_key = f"{dst_port}_{protocol_name}"
+        tag = tag_lookup.get(lookup_key, "Untagged")
+        
+        # Increment the counts
+        tag_counts[tag] += 1
+        port_protocol_counts[(dst_port, protocol_name)] += 1
 
-        dstport = fields[5]
 
-        tag = lookup_dict.get(dstport, "Untagged")
-
-        flow_logs.append({
-            "dstport": dstport,
-            "raw_data": line.strip(),
-            "tag": tag
-        })
-
-    return flow_logs
-
-def map_tags(flow_logs):
-    tag_counts = {}
-    dstport_counts = {}
-
-    for flow_log in flow_logs:
-        tag = flow_log["tag"]
-        dstport = flow_log["dstport"]
-
-        # Count tags
-        tag_counts[tag] = tag_counts.get(tag, 0) + 1
-
-        # Count dstport occurrences
-        dstport_counts[dstport] = dstport_counts.get(dstport, 0) + 1
-
-    return tag_counts, dstport_counts
-
-def generate_csv(data, headers):
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(headers)
-    for row in data:
-        writer.writerow(row.values())
-    output.seek(0)
-    return output.getvalue()
-
-if flow_log_file and lookup_table_file:
-    lookup_dict = parse_lookup_table(lookup_table_file)
-    flow_logs = parse_flow_logs(flow_log_file, lookup_dict)
-    tag_counts, port_protocol_counts = map_tags(flow_logs)
+def main():
+    st.title("Flow Log Parser and Tag Counter")
     
-    st.write("### Flow Logs")
-    st.write(flow_logs)
-    st.write("### Lookup Table")
-    st.write(lookup_dict)
+    # Upload the lookup table
+    lookup_file = st.file_uploader("Upload Lookup Table CSV", type="csv")
+    if lookup_file:
+        load_lookup_table(lookup_file)
+        st.success("Lookup Table Loaded")
+    
+    # Upload the protocol table
+    protocol_file = st.file_uploader("Upload Protocol Table CSV", type="csv")
+    if protocol_file:
+        load_protocol_table(protocol_file)
+        st.success("Protocol Table Loaded")
+    
+    # Upload the flow logs
+    log_file = st.file_uploader("Upload Flow Logs Text File", type="txt")
+    if log_file:
+        parse_flow_logs(log_file)
+        st.success("Flow Logs Parsed")
+        
+        # Display tag counts
+        st.subheader("Tag Counts")
+        tag_counts_df = pd.DataFrame(tag_counts.items(), columns=["Tag", "Count"])
+        st.table(tag_counts_df)
+        
+        # Display port/protocol combination counts
+        st.subheader("Port/Protocol Combination Counts")
+        port_protocol_counts_df = pd.DataFrame(
+            [(port, protocol, count) for (port, protocol), count in port_protocol_counts.items()],
+            columns=["Port", "Protocol", "Count"]
+        )
+        st.table(port_protocol_counts_df)
 
-    st.write("### Tag Counts")
-    tag_counts_display = [{"Tag": k, "Count": v} for k, v in tag_counts.items()]
-    st.write(tag_counts_display)
-
-    st.write("### Port/Protocol Combination Counts")
-    port_protocol_counts_display = [
-        {"Port": k[0], "Protocol": k[1], "Count": v} 
-        for k, v in port_protocol_counts.items()
-    ]
-    st.write(port_protocol_counts_display)
-
-    st.download_button("Download Tag Counts",
-                       data=generate_csv(tag_counts_display, ["Tag", "Count"]),
-                       file_name="tag_counts.csv", mime="text/csv")
-
-    st.download_button("Download Port/Protocol Counts",
-                       data=generate_csv(port_protocol_counts_display, ["Port", "Protocol", "Count"]),
-                       file_name="port_protocol_counts.csv", mime="text/csv")
-else:
-    st.error("Please upload both files")
+if __name__ == "__main__":
+    main()
