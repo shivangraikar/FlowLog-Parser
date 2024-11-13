@@ -3,6 +3,9 @@ from collections import defaultdict
 import streamlit as st
 import pandas as pd
 import io
+import time
+from io import StringIO
+
 
 tag_lookup = {}
 protocol_map = {}
@@ -68,7 +71,13 @@ def parseFlowLogs(file):
 
 
 def main():
-    st.title("Flow Log Parser and Tag Counter")
+    st.title("Flow Log Parser")
+    st.markdown("""
+    **Steps to use:**
+    - First: Upload the Lookup Table CSV
+    - Second: Upload the Protocol Table CSV
+    - Third: Upload the Flow Logs Text File
+    - Finally: Download the Combined: Tag Counts and Port/Protocol Counts""")
 
     # Upload the lookup table
     lookup_file = st.file_uploader("Upload Lookup Table CSV", type="csv")
@@ -76,30 +85,51 @@ def main():
         load_lookup_table(lookup_file)
         st.success("Lookup Table Loaded")
     
-    # Upload the protocol table
-    protocol_file = st.file_uploader("Upload Protocol Table CSV", type="csv")
-    if protocol_file:
-        load_protocol_table(protocol_file)
-        st.success("Protocol Table Loaded")
+        # Upload the protocol table
+        protocol_file = st.file_uploader("Upload Protocol Table CSV", type="csv")
+        if protocol_file:
+            load_protocol_table(protocol_file)
+            st.success("Protocol Table Loaded")
     
-    # Upload the flow logs
-    log_file = st.file_uploader("Upload Flow Logs Text File", type="txt")
-    if log_file:
-        parseFlowLogs(log_file)
-        st.success("Flow Logs Parsed")
-        
-        # Display tag counts
-        st.subheader("Tag Counts")
-        tag_counts_df = pd.DataFrame(tag_counts.items(), columns=["Tag", "Count"])
-        st.table(tag_counts_df)
-        
-        # Display port/protocol combination counts
-        st.subheader("Protocol/Port Counts")
-        port_protocol_counts_df = pd.DataFrame(
-            [(port, protocol, count) for (port, protocol), count in port_protocol_counts.items()],
-            columns=["Port", "Protocol", "Count"]
-        )
-        st.table(port_protocol_counts_df)
+            # Upload the flow logs
+            log_file = st.file_uploader("Upload Flow Logs Text File", type="txt")
+            if log_file:
+                parseFlowLogs(log_file)
+                st.success("Flow Logs Parsed")
+                
+                with st.spinner('Wait for it...'):
+                    time.sleep(3)
+                st.success("Done!")
+
+                # Display tag counts
+                st.subheader("Tag Counts")
+                tag_counts_df = pd.DataFrame(tag_counts.items(), columns=["Tag", "Count"])
+                st.table(tag_counts_df)
+                
+                # Display port/protocol combination counts
+                st.subheader("Protocol/Port Counts")
+                port_protocol_counts_df = pd.DataFrame(
+                    [(port, protocol, count) for (port, protocol), count in port_protocol_counts.items()],
+                    columns=["Port", "Protocol", "Count"]
+                )
+                st.table(port_protocol_counts_df)
+            
+                csv_buffer = StringIO()
+
+                csv_buffer.write("Tag Counts\n")
+                tag_counts_df.to_csv(csv_buffer, index=False)
+                csv_buffer.write("\nPort/Protocol Counts\n")
+                port_protocol_counts_df.to_csv(csv_buffer, index=False)
+
+                csv_data = csv_buffer.getvalue()
+
+                st.download_button(
+                    label="Download Combined CSV",
+                    data=csv_data,
+                    file_name="output_counts.csv",
+                    mime="text/csv"
+                )
+    
 
 if __name__ == "__main__":
     main()
