@@ -23,5 +23,5 @@ A single CSV file with two sections:
 
 ## Usage
 
-1. Check:[HostApp](https://shivangraikar-flowlog-parser-app-cdeeko.streamlit.app/)!
+1. Check:[ HostApp](https://shivangraikar-flowlog-parser-app-cdeeko.streamlit.app/)
 2. Download the repository, install streamlit and then 'streamlit run app.py'
